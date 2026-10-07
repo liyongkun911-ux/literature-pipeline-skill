@@ -1,0 +1,336 @@
+{
+  "_comment": "复制为 runs/<run-id>/profile.json 后按课题调整。脚本只读这份配置，不要在 SKILL.md 里硬编码口径。",
+  "topic": null,
+  "language": {
+    "primary": "en",
+    "secondary": "zh"
+  },
+  "window": {
+    "years": 5,
+    "hard_cutoff": false,
+    "classic_exempt_citations_gte": 1500,
+    "_classic_note": "该阈值只对被标为 openalex 计数来源的记录有意义；跨源比较引用数无效，用户点名的经典请走 queries.json 的 must_keep 而非依赖此阈值",
+    "_note": "hard_cutoff=false 时，>窗口 的高被引奠基作或用户点名经典可进入 classic 桶，参与评分但不占常规名额"
+  },
+  "sources": {
+    "openalex": {
+      "enabled": true,
+      "max_records": 400,
+      "sort": "relevance",
+      "_sort_note": "召回排序：relevance=相关度（默认，避免高被引挤掉小众相关工作）；citations=按引用数（追热点时用）；date=按时间",
+      "per_page": 100,
+      "timeout_s": 30
+    },
+    "crossref": {
+      "enabled": true,
+      "max_records": 300,
+      "per_page": 100,
+      "timeout_s": 30
+    },
+    "arxiv": {
+      "enabled": true,
+      "max_records": 300,
+      "fallback_via_openalex": true,
+      "per_page": 100,
+      "timeout_s": 40
+    },
+    "semanticscholar": {
+      "enabled": true,
+      "max_records": 300,
+      "per_page": 100,
+      "timeout_s": 30
+    },
+    "giiisp": {
+      "enabled": false,
+      "max_records": 200,
+      "requires_env": "GIIISP_AUTH_TOKEN"
+    },
+    "citation_chasing": {
+      "enabled": true,
+      "seeds_max": 6,
+      "depth": 1,
+      "max_added": 250
+    },
+    "min_union_after_degrade": 120,
+    "_note": "某源 429/超时按 skip 降级，不阻断；总召回低于 min_union_after_degrade 必须在报告里标红并建议换源或放宽检索式"
+  },
+  "http": {
+    "retries": 4,
+    "backoff_base_s": 2,
+    "backoff_cap_s": 60,
+    "respect_retry_after": true,
+    "polite_mailto": "<你的邮箱>",
+    "per_host_min_interval_s": 1.2
+  },
+  "venue_screen": {
+    "builtin_tiers": true,
+    "journal_directory": null,
+    "accept_tiers": [
+      "T1",
+      "T2",
+      "T3",
+      "T4"
+    ],
+    "known_low_tier_action": "drop",
+    "unknown_action": "keep_and_flag",
+    "preprint_venues_allowed": true,
+    "reject_venues": [],
+    "_note": "认可口径=期刊权威性 tier（T1顶刊/T2权威/T3良好/T4一般/T5预警），分级表见 config/journal_tiers.csv。明确列为 T4/T5 者按 known_low_tier_action 处理；表里查不到的刊走 unknown_action=keep_and_flag（保留、按未知层次计分、并汇总到 03_unresolved_venues.csv 供批量补表）。journal_directory 指向本校官方目录时覆盖内置表同名条目。",
+    "unknown_score": "zero",
+    "health": {
+      "enabled": true,
+      "retraction_ratio_threshold": 0.02,
+      "min_works_for_retraction_signal": 50,
+      "penalties": {
+        "retraction_heavy": 0.2,
+        "not_indexed": 0.1
+      },
+      "_health_note": "screen 时按 ISSN/刊名实查 OpenAlex Sources（结果缓存在 03_venue_health.json，重跑 screen 不重复请求）。non_journal_carrier=book series/conference 载体自动封顶 T4（判据1）；not_indexed=works≥100 却不在任何索引清单且不在 DOAJ；retraction_heavy=撤稿占比超阈值且发文量足够。penalties 是从 0-1 层次分里扣的分值，写进 venue_risk_penalty 可解释。OpenAlex 查不到的载体不造信号，只标 error=source-not-found",
+      "_context_note": "中科院分区表平台及 API 2026-09-30 起停运、不再编纂公开排名（官方通知）；分区列 tier_basis=cas_partition_ref 指停运前最后公开版，属参考映射。过渡期可参考新锐分区（xr-scholar.com，免费，非官方机构），正式口径以本校科研目录为准"
+    },
+    "_unknown_score_note": "未收录/未标明载体的层次分策略：zero=不作数（默认，不奖励元数据缺失）；t4=与量刊同分；neutral=旧的 0.40 中性分。注意 zero 会让'来源没给刊名'的好论文被埋，清单里已显式列出这些条目。",
+    "_accept_note": "T1-T4 认可，T4 只拿 0.26 层次分（量刊能看不给面子）；T5/预警走 R04 剔除。要恢复严格口径删掉 T4"
+  },
+  "scoring": {
+    "_structure": "综合分 = 基础分(相关性×70) + 成果加分(封顶30)；加分含期刊权威性/影响力/时效/可获取/权威代理",
+    "base": {
+      "dimension": "relevance",
+      "weight_pct": 70
+    },
+    "bonus": {
+      "cap": 30,
+      "apply_bonus_multiplier": false,
+      "bonus_multiplier": 0.3,
+      "subcaps": {
+        "venue": 14,
+        "impact": 7,
+        "recency": 5,
+        "accessibility": 3,
+        "authority": 3
+      },
+      "_subcaps_note": "子项上限之和=32 > 封顶30，故意让封顶可触发：各项都满也被削到30，抑制『好处叠满』"
+    },
+    "relevance": {
+      "lexical_weight": 0.45,
+      "semantic_weight": 0.55,
+      "normalize": "percentile_within_run"
+    },
+    "impact": {
+      "normalize": "field_percentile",
+      "field_source": "openalex.topics.domain",
+      "fallback": "log_ratio"
+    },
+    "recency": {
+      "half_life_years": 2.5,
+      "no_year_score": 0.3,
+      "classic_cap": 0.25,
+      "gradient": [
+        {
+          "max_age": 1,
+          "score": 1.0
+        },
+        {
+          "max_age": 2,
+          "score": 0.88
+        },
+        {
+          "max_age": 3,
+          "score": 0.72
+        },
+        {
+          "max_age": 4,
+          "score": 0.55
+        },
+        {
+          "max_age": 5,
+          "score": 0.4
+        },
+        {
+          "max_age": 7,
+          "score": 0.26
+        },
+        {
+          "max_age": 10,
+          "score": 0.15
+        },
+        {
+          "max_age": 99,
+          "score": 0.08
+        }
+      ],
+      "_note": "时效按分档梯度给分（近1年1.0 → 10年以上0.08），档位会写进 recency_step 便于解释；删掉 gradient 就退回半衰期指数曲线。经典文献的时效分封顶 0.25，以免『老而经典』把时效分吃满。"
+    },
+    "tie_break": [
+      "impact",
+      "recency"
+    ],
+    "_tie_note": "只能列有 dim_* 分项的名字；引用数不做跨源比较，故不在此列也不在分组内直接比大小",
+    "emit_breakdown": true
+  },
+  "selection": {
+    "mode": "related_work",
+    "_mode_note": "scout=先摸 5 篇看方向（只跑到清单，不写库不取全文）；related_work=默认，20 篇候选；systematic=先写 PRISMA 协议再做分阶段筛选日志",
+    "difficulty": 5,
+    "_difficulty_note": "1-10。1-3 只做初始一轮检索；4-7 允许一轮追加；8-10 允许两轮。追加轮必须绑定一个具体缺口，不许换措辞重跑",
+    "candidates": 20,
+    "reserve": 8,
+    "role_quota": {
+      "survey": {
+        "min": 2,
+        "max": 4
+      },
+      "method": {
+        "min": 6,
+        "max": 10
+      },
+      "benchmark": {
+        "min": 2,
+        "max": 5
+      },
+      "application": {
+        "min": 3,
+        "max": 8
+      },
+      "critique": {
+        "min": 0,
+        "max": 3
+      }
+    },
+    "diversity": {
+      "max_same_first_author": 3,
+      "max_same_venue": 4,
+      "min_distinct_subtopics": 4
+    },
+    "_note": "配额冲突时按分数优先，缺口写入 report 的 quota_shortfall，不静默塞低分文献",
+    "min_score": 45,
+    "_min_score_note": "低于此分的条目不填进候选池：预算是上限不是目标（5-15 篇强的胜过 40 篇凑的）。要更多候选请放宽检索式，不是调低这里"
+  },
+  "zotero": {
+    "base": "http://127.0.0.1:23119",
+    "library_id": 0,
+    "collection_prefix": "LitPipe",
+    "prefer_channel": "auto",
+    "channels": [
+      "local_api",
+      "connector",
+      "betterbibtex",
+      "file_handoff"
+    ],
+    "idempotency_key": [
+      "doi",
+      "arxiv_id",
+      "title_norm"
+    ],
+    "attach_pdf_in_zotero": true,
+    "_note": "prefer_channel=auto 时由 `lit.py zotero probe` 实测决定；file_handoff 永远可用（生成 RIS/Bib 让用户拖入）",
+    "retraction_check": true
+  },
+  "tags": {
+    "priority": {
+      "prefix": "优先级",
+      "values": [
+        "P1",
+        "P2",
+        "P3"
+      ],
+      "assign_by": "score_band",
+      "bands": {
+        "P1": 82,
+        "P2": 64,
+        "P3": 0
+      },
+      "_bands_note": "量纲：70 基础 + 30 加分。82≈相关度约前 1/5 且加分扎实；64≈池内中上"
+    },
+    "topic": {
+      "prefix": "主题",
+      "values_from": "subtopic_label"
+    },
+    "method": {
+      "prefix": "方法",
+      "values_from": "method_label"
+    },
+    "status": {
+      "prefix": "状态",
+      "values": [
+        "待读",
+        "在读",
+        "已读",
+        "需手动获取",
+        "无全文"
+      ],
+      "default": "待读"
+    },
+    "role": {
+      "prefix": "角色",
+      "values": [
+        "综述",
+        "方法",
+        "基准",
+        "应用",
+        "争议"
+      ]
+    }
+  },
+  "pdf": {
+    "storage_root": "D:\\Workprograms\\ahao-Qorder\\ahao-Qorder\\literature-pipeline/pdfs",
+    "_storage_root_note": "默认指向 literature-pipeline/pdfs 作为兜底；**课题化用法**：init 后把 run 的 profile.json 里 pdf.storage_root 改成 <课题目录>/references/pdfs，PDF 即归入课题",
+    "allow_sources": [
+      "arxiv",
+      "openalex_oa_url",
+      "unpaywall",
+      "semanticscholar_pdf",
+      "openalex_locations",
+      "unpaywall_repo",
+      "crossref_pdf",
+      "europepmc_pdf",
+      "arxiv_title",
+      "local_user_file"
+    ],
+    "block_paywall_bypass": true,
+    "_route_note": "全部是出版商/作者/机构自行公开的合法副本。anti_bot_blocked 与 closed_paywall 分开记：前者内容本身开放、只是本机出口被 CDN 拒，交给用户浏览器点开；后者不找镜像、不绕墙。crossref_pdf 只取 link[].content-type=application/pdf 的条目；europepmc_pdf 只取 isOpenAccess=Y 的 PMC 渲染直链",
+    "verify_magic": "%PDF",
+    "max_mb": 80,
+    "_max_mb_note": "40MB 会误杀合法 OA 大文件（实测 AeroVerse arXiv PDF 43.9MB）；改流式写盘后按此上限截断",
+    "on_fail_tag": "状态/需手动获取"
+  },
+  "reading_notes": {
+    "per_paper_fields": [
+      "研究问题",
+      "核心假设",
+      "方法与技术路线",
+      "数据或实验设置",
+      "主要结论",
+      "数字出处(页/节)",
+      "可复用点",
+      "局限与疑点",
+      "与本主题的关联",
+      "精读章节指引",
+      "预计用时"
+    ],
+    "ordering_strategy": "three_pass",
+    "output": [
+      "reading-nav.md",
+      "reading-matrix.csv",
+      "reading-order.json"
+    ]
+  },
+  "provenance": {
+    "record_queries": true,
+    "record_source_counts": true,
+    "record_drop_reasons": true,
+    "keep_raw_payloads": false
+  },
+  "evidence": {
+    "target_claims": 20,
+    "claims_pool_multiplier": 3,
+    "recent_years": 3,
+    "min_recent_share": 0.6,
+    "target_venue": null,
+    "exemplars": {
+      "same_field": 3,
+      "target_venue": 3,
+      "require_fulltext": true
+    },
+    "_note": "论断支撑表与范本案档。3× 候选行是防止凑数：先铺够再挑。含测量数值的论断必须是 fulltext 且写明页/节，且该篇全文真的在 pdfs/ 里 —— 脚本会查。未指定 target_venue 时不做任何『符合目标刊体例』的声称：agent 自选的对照刊不算 target。"
+  }
+}
