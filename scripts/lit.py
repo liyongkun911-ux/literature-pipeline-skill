@@ -206,9 +206,12 @@ def main():
         evidence.exemplar_check(_run(a)) if a.action == "exemplar-check" else
         evidence.exemplar_pick(_run(a), venue=a.venue, n_field=a.n_field, n_venue=a.n_venue)))
 
-    s = sub.add_parser("notes", parents=[gp]); s.add_argument("action", choices=["template", "build"]); s.add_argument("--force", action="store_true")
-    s.set_defaults(fn=lambda a: (notes.template(_run(a), force=a.force) if a.action == "template"
-                                 else notes.build(_run(a), force=a.force)))
+    s = sub.add_parser("notes", parents=[gp]); s.add_argument("action", choices=["template", "build", "audit"])
+    s.add_argument("--force", action="store_true"); s.add_argument("--no-text", action="store_true")
+    s.set_defaults(fn=lambda a: (
+        notes.template(_run(a), force=a.force) if a.action == "template" else
+        notes.audit(_run(a), use_text=not a.no_text) if a.action == "audit" else
+        notes.build(_run(a), force=a.force)))
 
     a = p.parse_args()
     return a.fn(a)

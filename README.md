@@ -57,7 +57,7 @@
 | 7 | 用户改 `verdict` → `review-apply` | `06_selected.jsonl`（含标签） | **人** |
 | 8 | `pdfs fetch` → `browser-queue` → 浏览器代取 `browser-serve` → `retag` | `pdfs/`, `pdf_manifest.csv`, `zotero-find-pdf.md` | 脚本 + 浏览器（用户登录态） |
 | 9 | `zotero build` → 确认 → `import --yes` → `verify` → `attach --with-tags --yes` | `bib/recs.ris`, `recs.bib`, `zotero_state.json` | 人 + 脚本 |
-| 10 | `notes template` → 填 → `notes build` | `reading-nav.md`, `reading-matrix.csv`, `reading-order.json` | 模型 + 脚本 |
+| 10 | `notes template` → 填 → `notes audit`（页码自检）→ `notes build` | `reading-nav.md`, `reading-matrix.csv`, `reading-order.json`, `08_notes_audit.csv` | 模型 + 脚本 |
 | 11 | `evidence claims-template` → 填 `claims.csv` → `claims-check` | `evidence/claims_audit.csv` | 模型写 + **脚本审计** |
 | 12 | `evidence exemplar-pick` → 填档案 → `exemplar-check` | `evidence/exemplars.csv`, `exemplar_dossier.md` | 脚本选 + 模型填 |
 | — | `report` | `report.md`（检索式、各源命中、去重统计、reason code 分布） | 脚本 |
@@ -114,7 +114,7 @@ python <skill>/scripts/lit.py dedupe  --run 2026-10-08-demo
 | `zotero` | 子动作 `probe / build / import / verify / find-pdf / attach`：四通道入库、查重、回读校验、挂 linked_file 附件、推标签 |
 | `pdfs` | 子动作 `fetch / retag / browser-queue / browser-serve / browser-commit`：合法 OA 抓取 + 浏览器代取通道 |
 | `evidence` | 子动作 `claims-template / claims-check / exemplar-pick / exemplar-check`：论断支撑表与目标刊体例档案（脚本审计） |
-| `notes` | 子动作 `template / build`：逐篇判读 → 阅读导航（7 个必填字段没填满就拒绝出稿，`--force` 出带未完成标记的草稿） |
+| `notes` | 子动作 `template / audit / build`：逐篇判读 → **页码自检**（有数字没页码、页引越界、页引对不上原文）→ 阅读导航（7 个必填字段没填满就拒绝出稿，`--force` 出带未完成标记的草稿） |
 
 ## 产物契约
 
@@ -137,6 +137,7 @@ enrichment.csv              模型填的语义维度
 07_pdf_status.json          逐篇全文状态
 08_browser_queue.md         浏览器代取的清单
 08_notes_incomplete.json    判读缺哪些字段
+08_notes_audit.csv          页码审计：有数字没页码 / 页引越界 / 页引对不上原文
 bib/recs.ris / recs.bib     可导入 Zotero / 引用的条目
 zotero_state.json           写库回读校验
 pdfs/                       全文（按 run 归档）

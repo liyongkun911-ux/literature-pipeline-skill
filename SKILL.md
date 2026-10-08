@@ -32,6 +32,8 @@ argument-hint: <研究主题> [--years 5] [--candidates 20]
    点名未覆盖的基准、摘要指向的奠基作、缺失的缩写），换措辞重跑同一意图不算一轮。够就停。
 9. **读到才能引。** 归属到某篇的结论至少读过摘要；要引其中**数字**必须读到结果章节，
    并写清出自第几页/哪一节。只有摘要可看时标 `仅摘要`，不要装作读过全文。
+   `notes audit` 是这条的**自动检查**（有数字没页码 / 页引越界 / 页引对不上原文），
+   判据、±1 页序容差与降级条件见 `references/05-pdf-reading.md`。
 10. **撤稿不可逆于信任。** `zotero build` 前对全部 DOI 做一次 OpenAlex 撤稿核查，
     检出即拒绝写库；无 DOI 的条目记"未核查"，绝不当作"已核查干净"。
 11. **产物不存在 = 没做过。** "我核查过引用了""我学过目标刊的体例"这类声称必须能指到一个
@@ -76,7 +78,7 @@ python <skill>/scripts/lit.py probe --run <id>
 | 7 | 用户改 `verdict` → `review-apply` | `06_selected.jsonl`（含标签） | **人** |
 | 8 | `pdfs fetch` → `pdfs browser-queue` → 浏览器代取 `browser-serve` → `pdfs retag` | `pdfs/`, `pdf_manifest.csv`, `zotero-find-pdf.md` | 脚本 + 浏览器（用户登录） |
 | 9 | `zotero build` → 确认 → `import --yes` → `verify` → `attach --with-tags --yes`（挂 linked_file 附件 + 同步标签 + 回读校验） | `bib/recs.ris`, `recs.bib`, `zotero_state.json`, `zotero_attach_state.json` | 人 + 脚本 |
-| 10 | `notes template` → 填 → `notes build`（7 个必填字段没填满就拒绝出稿；中途要总表加 `--force`，出的稿顶部标未完成） | `reading-nav.md`, `reading-matrix.csv`, `reading-order.json`, `08_notes_incomplete.json` | 模型 + 脚本 |
+| 10 | `notes template` → 填 → `notes audit`（页码/凭据自检，见 references/05）→ `notes build`（7 个必填字段没填满就拒绝出稿；中途要总表加 `--force`，出的稿顶部标未完成） | `reading-nav.md`, `reading-matrix.csv`, `reading-order.json`, `08_notes_incomplete.json`, `08_notes_audit.csv` | 模型 + 脚本 |
 | 11 | `evidence claims-template` → 填 `claims.csv` → `evidence claims-check` | `evidence/claims_audit.csv`（verified / self-attested / blocked） | 模型写 + **脚本审计** |
 | 12 | `evidence exemplar-pick --venue "<目标刊>"` → 填档案 → `evidence exemplar-check` | `evidence/exemplars.csv`, `evidence/exemplar_dossier.md` | 脚本选 + 模型填 |
 | — | `report` | `report.md`（检索式、各源命中、去重统计、reason code 分布） | 脚本 |
@@ -156,6 +158,7 @@ Sources——`non_journal_carrier`（book series/conference 载体）自动封�
 | PDF 大面积 manual_required | 正常（订阅制出版商）。交付 `zotero-find-pdf.md`，标 `状态/需手动获取`；有机构订阅时走 `pdfs browser-queue` + 浏览器代取（见 references/05） |
 | `anti_bot_blocked` 条目 | 索引认定有开放副本、脚本被 CDN 拒。浏览器打开 `pdf_unresolved.md` 里的入口即得；Europe PMC 渲染直链属此类（脚本 403、浏览器可下） |
 | `notes build` 报"判读没填满" | 这是拦空壳的闸门，不是故障。按 `08_notes_incomplete.json` 补齐 `reading_notes.jsonl` 的 7 个必填字段再跑；只想中途看总表就加 `--force`（稿顶会标未完成） |
+| `notes audit` 报「页引对不上（本文他处也无）」 | 该数字在本篇任何被引页上都找不到，回原文核；若该篇是扫描版/图片型，会同时给 `text_layer_thin`，此时内容级核验已跳过，结论按"仅摘要"对待。仅超 ±1 页的越界不计入问题数（卷首页偏移），只单独列出供复核 |
 
 ## 交付什么
 
