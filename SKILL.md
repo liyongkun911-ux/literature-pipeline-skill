@@ -18,7 +18,7 @@ argument-hint: <研究主题> [--years 5] [--candidates 20]
    缺就标缺。分区只能来自 `venue_screen.journal_directory`。
 2. **写 Zotero 是不可逆操作。** 先 `zotero build` 给用户看产物 → 取得明确同意 → 才允许
    `zotero import --yes`。绝不绕付费墙。
-3. **每个剔除都要有 reason code**（R01–R08，见 `references/03-screen-scoring.md`）。
+3. **每个剔除都要有 reason code**（R01–R09，见 `references/03-screen-scoring.md`）。
    拿不准的进 `needs_judgement`，不静默删、也不静默留。
 4. **召回不足时先修检索式，不在下游打补丁。** 出现 `WARN 总召回 < 阈值` 或某源 0 命中，
    回改 `queries.json` 重跑 `harvest`，不要降低配额硬凑 20 篇。
@@ -102,8 +102,10 @@ python <skill>/scripts/lit.py probe --run <id>
 
 内置 `config/journal_tiers.csv`：194 条记录，字段
 `name, issn_l, alt_names, tier, partition, if_band, domain, note, tier_basis`。
-tier 含义 **T1 顶刊 / T2 权威 / T3 良好 / T4 一般 / T5 预警**。默认只认可 T1–T3，
-判为 T4/T5 的按 R02 剔除，预印本单列 PRE 不降格处理。
+tier 含义 **T1 顶刊 / T2 权威 / T3 良好 / T4 一般 / T5 预警**。默认认可 T1–T4
+（T4 只给 0.26 层次分，等于"留个位置但不加分"），明确判为 T5 的按 **R04** 剔除，
+预印本单列 PRE 不降格处理。想恢复严格口径就把 T4 从 `venue_screen.accept_tiers` 里删掉，
+届时低于认可线的才按 R02 剔除（`known_low_tier_action: "drop"`）。
 `tier_basis` 记判定依据（cas_partition_ref = 停运前中科院分区参考 / proceedings_or_series /
 high_volume_journal / editorial_judgement），让每条分级可回溯到"凭什么这么判"。
 

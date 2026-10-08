@@ -19,8 +19,10 @@
 | `arxiv_title` | 无 DOI 时 arXiv `ti:"标题"` 检索 | 双闸门防错配：标题 bigram 相似度 ≥0.8 **且**首作者姓氏在条目作者里；实测《Attention Is All You Need》命中、伪作者被拒 |
 | `local_user_file` | 用户自己放进 `runs/<id>/pdfs/` 的文件 | 手动补 |
 
-存储：`pdf.storage_root`（默认 `D:/ResearchPrograms`）设置后 PDF 统一落在
-`<storage_root>/<run-id>/`，manifest 记**绝对路径**；置 null 回到旧的 `runs/<id>/pdfs`。
+存储：`pdf.storage_root` 设置后 PDF 统一落在 `<storage_root>/<run-id>/`，manifest 记**绝对路径**。
+默认 `"pdfs"` 是**相对当前工作目录**的，即 `<cwd>/pdfs/<run-id>/`；要固定位置就写绝对路径
+（课题目录用法：指向 `<课题目录>/references/pdfs`，PDF 随课题归档）；留空则落在 run 目录的
+`runs/<id>/pdfs/`。
 
 下载用**流式写盘**（`common.http_stream`）：先验 `%PDF` 魔数、边写边判体积上限
 （`pdf.max_mb`，默认 80），任何失败都不留 `.part` 也不留半个 PDF——Windows 上文件句柄没关就

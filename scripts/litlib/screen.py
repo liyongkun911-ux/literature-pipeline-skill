@@ -13,7 +13,7 @@ from .venue_health import probe_venues
 
 REASONS = {
     "R01": "off-topic: 模型判定不属于目标方向",
-    "R02": "venue-tier: 期刊权威性 tier 低于 accept_tiers（分级表判为 T4/T5）",
+    "R02": "venue-tier: 期刊权威性 tier 低于 accept_tiers（分级表判为 T4/T5，且该 tier 未列入 accept_tiers）",
     "R03": "venue-unresolved: 刊名未被分级表收录且 unknown_action=drop",
     "R04": "flagged-venue: 命中排除/预警名单",
     "R05": "out-of-window: 超出时间窗且未获经典豁免",

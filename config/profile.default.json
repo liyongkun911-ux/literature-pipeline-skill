@@ -272,8 +272,8 @@
     }
   },
   "pdf": {
-    "storage_root": "D:\\Workprograms\\ahao-Qorder\\ahao-Qorder\\literature-pipeline/pdfs",
-    "_storage_root_note": "默认指向 literature-pipeline/pdfs 作为兜底；**课题化用法**：init 后把 run 的 profile.json 里 pdf.storage_root 改成 <课题目录>/references/pdfs，PDF 即归入课题",
+    "storage_root": "pdfs",
+    "_storage_root_note": "相对路径按**当前工作目录**解析，PDF 落在 <cwd>/pdfs/<run-id>/（与旧布局一致）；要固定位置就把 run 的 profile.json 里 pdf.storage_root 写成本机绝对路径（如 <课题目录>/references/pdfs，PDF 即随课题归档）；留空则落在 run 目录的 runs/<run-id>/pdfs/；Windows 路径必须纯反斜杠",
     "allow_sources": [
       "arxiv",
       "openalex_oa_url",

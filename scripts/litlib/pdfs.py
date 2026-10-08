@@ -227,7 +227,7 @@ def classify(attempts, oa_status, has_pointer, asked_indexes):
 
 def _pdf_outdir(run, prof):
     # storage_root shifts the PDFs out of the run dir into one place the user actually reads
-    # (e.g. D:/ResearchPrograms/<run-id>/); manifest then records absolute paths.
+    # (e.g. D:/<课题归档目录>/<run-id>/); manifest then records absolute paths.
     root = (prof["pdf"].get("storage_root") or "").strip()
     return os.path.join(root, run.run_id) if root else run.path("pdfs")
 
