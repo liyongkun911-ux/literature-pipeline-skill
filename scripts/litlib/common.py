@@ -158,13 +158,30 @@ def _throttle(host, min_interval):
     _HOST_LAST[host] = max(time.time(), _HOST_LAST.get(host, 0)) + min_interval
 
 
+def _mirror_variants(url, profile=None):
+    """Original URL first, then mirror-netloc variants from http.mirror_hosts.
+
+    镜像只用于同一开放副本的官方镜像域名切换（如 arxiv.org → export.arxiv.org / xxx.itp.ac.cn），
+    不改变内容的合法来源属性；付费墙内容不适用本机制（铁律12不受影响）。"""
+    mirrors = ((profile or {}).get("http", {}) or {}).get("mirror_hosts") or {}
+    parts = urllib.parse.urlsplit(url)
+    v = mirrors.get(parts.netloc)
+    cands = [v] if isinstance(v, str) else list(v or [])
+    out = [url]
+    for m in cands:
+        if m and m != parts.netloc:
+            out.append(urllib.parse.urlunsplit(parts._replace(netloc=m)))
+    return out
+
+
 def http_get(url, profile=None, headers=None, timeout=30, method="GET", body=None, ct=None, tries=None):
-    """Returns (status, bytes, err). Retries on 429/5xx honouring Retry-After; never raises."""
+    """Returns (status, bytes, err). Retries on 429/5xx honouring Retry-After; never raises.
+    Retries rotate through mirror variants (http.mirror_hosts) when configured."""
     http = (profile or {}).get("http", {})
     tries = tries if tries is not None else int(http.get("retries", 4))
     cap = float(http.get("backoff_cap_s", 60))
     base = float(http.get("backoff_base_s", 2))
-    host = urllib.parse.urlsplit(url).netloc
+    variants = _mirror_variants(url, profile)
     hdr = {"User-Agent": f"literature-pipeline/1.0 (mailto:{http.get('polite_mailto','n/a')})",
            "Accept": "application/json, */*"}
     if ct:
@@ -172,6 +189,8 @@ def http_get(url, profile=None, headers=None, timeout=30, method="GET", body=Non
     hdr.update(headers or {})
     err = None
     for i in range(tries):
+        u = variants[i % len(variants)]
+        host = urllib.parse.urlsplit(u).netloc
         if http.get("respect_retry_after", True):
             _throttle(host, float(http.get("per_host_min_interval_s", 1.2)))
         data = None
@@ -181,7 +200,7 @@ def http_get(url, profile=None, headers=None, timeout=30, method="GET", body=Non
             data = body.encode()
         elif body is not None:
             data = body
-        req = urllib.request.Request(url, data=data, headers=hdr, method=method)
+        req = urllib.request.Request(u, data=data, headers=hdr, method=method)
         try:
             with urllib.request.urlopen(req, timeout=timeout) as r:
                 return r.status, r.read(), None
@@ -222,17 +241,19 @@ def http_stream(url, dest, profile=None, max_bytes=64 * 1024 * 1024, headers=Non
     tries = tries if tries is not None else int(http.get("retries", 4))
     cap = float(http.get("backoff_cap_s", 60))
     base = float(http.get("backoff_base_s", 2))
-    host = urllib.parse.urlsplit(url).netloc
-    _throttle(host, float(http.get("per_host_min_interval_s", 1.2)))
+    variants = _mirror_variants(url, profile)
     hdr = {"User-Agent": f"literature-pipeline/1.0 (mailto:{http.get('polite_mailto','n/a')})",
            "Accept": "application/pdf, */*"}
     hdr.update(headers or {})
-    req = urllib.request.Request(url, headers=hdr)
     tmp = dest + ".part"
     got = 0
     st = None
     reject = None
     for i in range(tries):
+        u = variants[i % len(variants)]
+        host = urllib.parse.urlsplit(u).netloc
+        _throttle(host, float(http.get("per_host_min_interval_s", 1.2)))
+        req = urllib.request.Request(u, headers=hdr)
         got = 0
         st = None
         reject = None
@@ -270,7 +291,8 @@ def http_stream(url, dest, profile=None, max_bytes=64 * 1024 * 1024, headers=Non
                         reject = "截断(缺%%EOF)"
             except OSError as e:
                 reject = f"{type(e).__name__}: {e}"
-        if reject and (st in (429, 500, 502, 503, 504) or reject == "截断(缺%%EOF)") and i < tries - 1:
+        # 可重试：瞬态服务端错误、截断、以及连接级失败（st is None：DNS/超时/拒连——镜像轮换的主场景）
+        if reject and i < tries - 1 and (st is None or st in (429, 500, 502, 503, 504) or reject == "截断(缺%%EOF)"):
             time.sleep(min(cap, base * (2 ** i)))
             continue
         break

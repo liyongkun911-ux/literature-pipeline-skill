@@ -61,8 +61,13 @@
 | 11 | `evidence claims-template` → 填 `claims.csv` → `claims-check` | `evidence/claims_audit.csv` | 模型写 + **脚本审计** |
 | 12 | `evidence exemplar-pick` → 填档案 → `exemplar-check` | `evidence/exemplars.csv`, `exemplar_dossier.md` | 脚本选 + 模型填 |
 | — | `report` | `report.md`（检索式、各源命中、去重统计、reason code 分布） | 脚本 |
+| ∞ | **长期循环**（定题后日常）：新 PDF 丢进 pdf 文件夹 → `intake tomd` → `intake table` → 模型读 md 填选题字段 → 表驱动决定精读 | `md/`, `literature-table.csv`, `09_tomd_status.json` | 脚本转换 + **模型填表** |
 
 顺序要点：**先取全文再写库**（第 8 步早于第 9 步），否则 `状态/` 标签要改第二遍。
+∞ 循环不属于 1–12 的一次性链路：1–12 回答"这个主题有哪些文献我该读"（有 run-id，产物落 `runs/<id>/`），
+∞ 回答"定题之后每天新来的 PDF 怎么进库进表"（无 run-id，直接操作课题 pdf 文件夹，幂等只处理增量）。
+手动下载、浏览器代取、馆际互借来的文献不走 1–8 步，但**必须走 ∞ 才能进入视野**——这是它们与流水线的唯一接口。
+详见 `references/07-longterm-intake.md`。
 
 ### 三个会主动停下来的地方
 
@@ -115,6 +120,7 @@ python <skill>/scripts/lit.py dedupe  --run 2026-10-08-demo
 | `pdfs` | 子动作 `fetch / retag / browser-queue / browser-serve / browser-commit`：合法 OA 抓取 + 浏览器代取通道 |
 | `evidence` | 子动作 `claims-template / claims-check / exemplar-pick / exemplar-check`：论断支撑表与目标刊体例档案（脚本审计） |
 | `notes` | 子动作 `template / audit / build`：逐篇判读 → **页码自检**（有数字没页码、页引越界、页引对不上原文）→ 阅读导航（7 个必填字段没填满就拒绝出稿，`--force` 出带未完成标记的草稿） |
+| `intake` | 长期循环：子动作 `tomd`（pdf 文件夹递归→md，幂等，扫描件不产空壳）/ `table`（新 PDF 追加提取表空行，按路径去重，`--fields` 按选题定制字段） |
 
 ## 产物契约
 
@@ -236,11 +242,12 @@ literature-pipeline/
 │   ├── 03-screen-scoring.md      enrichment 契约、reason codes、双层算分与配额
 │   ├── 04-zotero-bridge.md       四通道能力矩阵、写授权与附件挂载、路径修复
 │   ├── 05-pdf-reading.md         合法全文路由、逐篇导航字段、三遍法顺序
-│   └── 06-evidence-exemplars.md  论断支撑表契约、范本档案七节
+│   ├── 06-evidence-exemplars.md  论断支撑表契约、范本档案七节
+│   └── 07-longterm-intake.md     定题后长期循环：intake tomd/table、字段设计、表驱动精读
 └── scripts/
-    ├── lit.py                    唯一 CLI 入口（15 个子命令）
+    ├── lit.py                    唯一 CLI 入口（16 个子命令）
     └── litlib/                   common / harvest / dedupe / screen / score / review /
-                                  zotero / pdfs / notes / evidence / venue_health
+                                  zotero / pdfs / notes / evidence / intake / venue_health
 ```
 
 ## 已知限制

@@ -347,13 +347,33 @@ def s2_search(run, q, limit=None):
 
 
 # ------------------------------------------------------------------ giiisp
+def giiisp_token():
+    """Env first; fall back to the Windows user-scope value so a freshly set token works
+    without restarting the host process (same pattern as openalex_key)."""
+    tok = os.environ.get("GIIISP_AUTH_TOKEN") or ""
+    if not tok and os.name == "nt":
+        try:
+            import winreg
+            with winreg.OpenKey(winreg.HKEY_CURRENT_USER, "Environment") as k:
+                tok = (winreg.QueryValueEx(k, "GIIISP_AUTH_TOKEN")[0] or "").strip()
+        except OSError:
+            tok = ""
+    return tok.strip()
+
+
 def giiisp_search(run, q, limit=None):
     prof = run.profile
-    tok = os.environ.get("GIIISP_AUTH_TOKEN") or ""
+    tok = giiisp_token()
     if not tok:
         return [], "giiisp: GIIISP_AUTH_TOKEN not set"
     url = "https://giiisp.com/first/oaPaper/searchArticlesByQuery1"
-    st, body, err = http_get(url, profile=prof, method="POST", body={"titleAndAbs": q["expr"]},
+    # 线上契约（2026-10-12 实测）：titleAndAbs 必须是字符串数组；含非 ASCII 词服务端直接 400，
+    # 故按空白切词后只保留 ASCII 词；纯中文检索式不发请求，提示改用其它源。
+    expr = (q.get("expr") or "").strip()
+    terms = [t for t in expr.split() if t.isascii() and t]
+    if not terms:
+        return [], "giiisp: expr 无 ASCII 检索词（服务端只接受英文词，中文查询请依赖 openalex/crossref）"
+    st, body, err = http_get(url, profile=prof, method="POST", body={"titleAndAbs": terms},
                               ct="application/json", headers={"Authorization": f"Bearer {tok}"}, timeout=40)
     if err:
         return [], f"giiisp: {err}"
@@ -364,20 +384,21 @@ def giiisp_search(run, q, limit=None):
     recs = []
     rows = data.get("data") or data.get("records") or []
     if isinstance(rows, dict):
-        rows = rows.get("records") or rows.get("list") or []
+        rows = (rows.get("allResultsByYear") or rows.get("records") or rows.get("list") or [])
     for it in rows if isinstance(rows, list) else []:
         r = blank(
             title=it.get("title") or it.get("titleCn") or it.get("name") or "",
             authors=[a.get("name", "") if isinstance(a, dict) else str(a) for a in (it.get("authors") or it.get("authorList") or [])],
-            year=(str(it.get("publishDate") or it.get("year") or ""))[:4] or None,
-            publication_date=it.get("publishDate") or "",
+            year=(str(it.get("publication_date") or it.get("publishDate") or it.get("year") or ""))[:4] or None,
+            publication_date=it.get("publication_date") or it.get("publishDate") or "",
             venue=it.get("journalName") or it.get("source") or "",
             doi=it.get("doi") or "",
             arxiv_id=it.get("arxivId") or "",
             url=it.get("url") or it.get("link") or "",
             pdf_url=it.get("pdfUrl") or "",
-            abstract=(it.get("abstract") or it.get("abstractCn") or "")[:3000],
-            language="zh" if (it.get("titleCn") and not it.get("title")) else "en",
+            abstract=(it.get("abstractText") or it.get("abstract") or it.get("abstractCn") or "")[:3000],
+            cited_by_count=int(it.get("citedByCount") or 0),
+            language=(it.get("language") or "en").lower(),
             type="journal-article",
         )
         if r["pdf_url"]:

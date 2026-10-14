@@ -41,7 +41,7 @@
       "timeout_s": 30
     },
     "giiisp": {
-      "enabled": false,
+      "enabled": true,
       "max_records": 200,
       "requires_env": "GIIISP_AUTH_TOKEN"
     },
@@ -59,8 +59,18 @@
     "backoff_base_s": 2,
     "backoff_cap_s": 60,
     "respect_retry_after": true,
-    "polite_mailto": "<你的邮箱>",
-    "per_host_min_interval_s": 1.2
+    "polite_mailto": "2812246613@QQ.com",
+    "per_host_min_interval_s": 1.2,
+    "mirror_hosts": {
+      "arxiv.org": [
+        "export.arxiv.org",
+        "xxx.itp.ac.cn"
+      ],
+      "export.arxiv.org": [
+        "arxiv.org"
+      ],
+      "_note": "同一开放副本的官方/学术镜像域名轮换重试（429/5xx/截断时下一轮换）。本机实测 2026-10-12：export.arxiv.org 200/0.43s 稳定；xxx.itp.ac.cn(中科院镜像) DNS 不通，保留为候选、不可达自动跳过。仅用于开放获取副本，不绕付费墙（铁律12不变）。"
+    }
   },
   "venue_screen": {
     "builtin_tiers": true,

@@ -11,7 +11,7 @@
 | Semantic Scholar | 是 | 常见 429 | 未认证共享池极紧 | externalIds、citationCount、openAccessPdf |
 | Unpaywall | 要 email | 200 | 宽松 | 合法 OA PDF 位置（`best_oa_location.url_for_pdf`） |
 | OpenAlex API key | **本机已配** | 设 `OPENALEX_API_KEY`（env 或 HKCU\Environment）后自动带 `api_key=` | 免除共享 IP 每日额度限制；带 key 额度约为匿名 10 倍 | 2026-09-19 实测恢复 200 |
-| GIIISP | 要 token | 未测（无 token） | — | 中文/OA 补充，复用已装技能 `research-copilot:giiisp-paper-search-apis` |
+| GIIISP | 要 token | **200（2026-10-12 实测）** | 请求体 `{"titleAndAbs": [字符串数组]}`；**服务端只接受 ASCII 英文词**，含中文词直接 400（`giiisp_search` 已自动切词过滤并在纯中文式时优雅跳过）；响应行在 `data.allResultsByYear`，字段为 `title/authors/publication_date/abstractText/citedByCount/language`（无 DOI/venue/pdfUrl，元数据靠 dedupe 阶段与其它源合并补全） | 英文 OA 补充源，token 读 `GIIISP_AUTH_TOKEN`（env 或 HKCU\Environment 回退） |
 
 ## 脚本已内置的应对
 

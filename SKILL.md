@@ -1,8 +1,10 @@
 ---
 name: literature-pipeline
-description: 从研究主题一路做到可执行的阅读计划：生成中英文分块检索式、多源检索近五年文献、按 DOI/标题去重、按期刊权威性分级表与研究方向筛选、基础分+成果加分（封顶30）双层打分、输出候选清单等人工确认、生成 RIS/BibTeX 并导入 Zotero、打优先级/主题/方法/状态标签、抓取开放获取全文、产出逐篇阅读导航与三遍法总顺序；最后把候选文献升级成可直接进稿的论断支撑表（每条论断标注证据来源与页节，脚本审计）和目标期刊体例档案。当用户给出一个研究主题并要求查文献、找论文、做文献综述、写开题/相关工作、"把文献整理进 Zotero"、或问"有哪些相关文献我该读"时使用，也可用于"帮我准备能站得住的引用论断""这篇期刊的论文是怎么写的"。也可只跑到某一阶段。写用户文献库前必须先取得明确同意。
+description: 从研究主题一路做到可执行的阅读计划：生成中英文分块检索式、多源检索近五年文献、按 DOI/标题去重、按期刊权威性分级表与研究方向筛选、基础分+成果加分（封顶30）双层打分、输出候选清单等人工确认、生成 RIS/BibTeX 并导入 Zotero、打优先级/主题/方法/状态标签、抓取开放获取全文、产出逐篇阅读导航与三遍法总顺序；最后把候选文献升级成可直接进稿的论断支撑表（每条论断标注证据来源与页节，脚本审计）和目标期刊体例档案。当用户给出一个研究主题并要求查文献、找论文、做文献综述、写开题/相关工作、"把文献整理进 Zotero"、或问"有哪些相关文献我该读"时使用，也可用于"帮我准备能站得住的引用论断""这篇期刊的论文是怎么写的"。也可只跑到某一阶段。定题后的长期日常同样走本技能：新文献进 pdf 文件夹后说"转md/更新提取表/填文献表"，走 intake 循环（references/07-longterm-intake.md）。写用户文献库前必须先取得明确同意。
 argument-hint: <研究主题> [--years 5] [--candidates 20]
 ---
+
+<!-- 定题后长期循环：新 PDF 丢进 pdf 文件夹 → intake tomd/table → 提取表驱动阅读（references/07-longterm-intake.md） -->
 
 # Literature Pipeline
 
@@ -81,6 +83,7 @@ python <skill>/scripts/lit.py probe --run <id>
 | 10 | `notes template` → 填 → `notes audit`（页码/凭据自检，见 references/05）→ `notes build`（7 个必填字段没填满就拒绝出稿；中途要总表加 `--force`，出的稿顶部标未完成） | `reading-nav.md`, `reading-matrix.csv`, `reading-order.json`, `08_notes_incomplete.json`, `08_notes_audit.csv` | 模型 + 脚本 |
 | 11 | `evidence claims-template` → 填 `claims.csv` → `evidence claims-check` | `evidence/claims_audit.csv`（verified / self-attested / blocked） | 模型写 + **脚本审计** |
 | 12 | `evidence exemplar-pick --venue "<目标刊>"` → 填档案 → `evidence exemplar-check` | `evidence/exemplars.csv`, `evidence/exemplar_dossier.md` | 脚本选 + 模型填 |
+| ∞ | **长期循环** `intake tomd` → `intake table` → 模型读 md 填字段 → 高价值篇进 Obsidian 精读（定题后新文献丢进 pdf 文件夹即入循环，见 `references/07-longterm-intake.md`） | `md/`, `literature-table.csv`, `09_tomd_status.json` | 脚本转换 + **模型填表** |
 | — | `report` | `report.md`（检索式、各源命中、去重统计、reason code 分布） | 脚本 |
 
 顺序要点：**先取全文再写库**（步骤 8 早于 9），否则"状态/"标签要改第二遍。
@@ -146,7 +149,7 @@ Sources——`non_journal_carrier`（book series/conference 载体）自动封�
 
 | 现象 | 处理 |
 |---|---|
-| 某源 429 / 超时 | 正常降级。单跑 `harvest --source openalex`，等 40–60s；`probe` 看现状。arXiv 挂了会自动改走 OpenAlex 的 arXiv 源过滤（产物标 `discovered_via=arxiv_via_openalex`），**不要 fan-out 重试** |
+| 某源 429 / 超时 / DNS 不通 | 正常降级；配了 `http.mirror_hosts` 时自动轮换镜像域名重试（原域名优先，失败切镜像，如 arxiv.org→export.arxiv.org→xxx.itp.ac.cn；镜像不可达再跳下一个）。单跑 `harvest --source openalex`，等 40–60s；`probe` 看现状。arXiv 挂了会自动改走 OpenAlex 的 arXiv 源过滤（产物标 `discovered_via=arxiv_via_openalex`），**不要 fan-out 重试** |
 | 候选数少于 target | 先看 `min_score` 是否卡住：够格的就那么多，宁少不凑数，回去放宽 `queries.json` 而不是调低下限 |
 | 去重数几乎没变 | DOI 覆盖本来就高；看 `02_dedup_log.json` 的 `title_fuzzy_merges`，可调 `--threshold` |
 | `needs_judgement` 爆量 | 期刊目录不全，按上面闭环补目录后重跑 `screen` |

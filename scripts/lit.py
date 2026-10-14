@@ -11,7 +11,7 @@ import urllib.parse
 import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from litlib import common, harvest, dedupe, screen, score, review, zotero, pdfs, notes, evidence  # noqa: E402
+from litlib import common, harvest, dedupe, screen, score, review, zotero, pdfs, notes, evidence, intake  # noqa: E402
 from litlib.common import Run, DEFAULT_PROFILE, die, ok, read_jsonl, slugify, now  # noqa: E402
 
 
@@ -56,7 +56,7 @@ def cmd_probe(a):
              ("semanticscholar", "https://api.semanticscholar.org/graph/v1/paper/search?query=test&limit=1"),
              ("unpaywall", "https://api.unpaywall.org/v2/10.1038/nature12579?email=" + prof["http"]["polite_mailto"])]
     for name, url in tests:
-        if name == "giiisp" and not os.environ.get("GIIISP_AUTH_TOKEN"):
+        if name == "giiisp" and not harvest.giiisp_token():
             continue
         st, body, err = common.http_get(url, profile=prof, tries=2, timeout=25)
         n = 0
@@ -67,7 +67,7 @@ def cmd_probe(a):
         print(f"  {name:<16} {'OK' if st == 200 else 'DEGRADED'} {st} ({n}B) {err or ''}")
         if name == "openalex" and st == 429 and b"budget" in (body or b"").lower():
             print("      ↑ 共享出口 IP 的每日免费额度已用尽。mailto 解不了，需设 OPENALEX_API_KEY 或等次日重置")
-    print(f"  giiisp           {'OK token set' if os.environ.get('GIIISP_AUTH_TOKEN') else 'NO GIIISP_AUTH_TOKEN'}")
+    print(f"  giiisp           {'OK token set' if harvest.giiisp_token() else 'NO GIIISP_AUTH_TOKEN'}")
     print(f"  openalex key     {'OK（env 或用户变量已读到）' if harvest.openalex_key() else 'NO OPENALEX_API_KEY（匿名池易撞每日额度）'}")
     if prof["http"]["polite_mailto"].startswith("REPLACE"):
         print("  WARN http.polite_mailto 仍是占位值：OpenAlex/Unpaywall 的礼貌池会更快限流，请在 profile.json 填真实邮箱")
@@ -212,6 +212,19 @@ def main():
         notes.template(_run(a), force=a.force) if a.action == "template" else
         notes.audit(_run(a), use_text=not a.no_text) if a.action == "audit" else
         notes.build(_run(a), force=a.force)))
+
+    s = sub.add_parser("intake", parents=[gp],
+                       help="长期库增量维护：PDF→MD 转换 + 选题字段提取表（新文献丢进 pdf 文件夹即入循环）")
+    s.add_argument("action", choices=["tomd", "table"])
+    s.add_argument("--pdf-dir", required=True, help="课题 PDF 文件夹（递归扫描子目录）")
+    s.add_argument("--out-dir", help="MD 输出目录（默认 pdf 文件夹同级的 md/）")
+    s.add_argument("--table", help="提取表 CSV 路径（默认 pdf 文件夹同级的 literature-table.csv）")
+    s.add_argument("--fields", help="首次建表字段 JSON 数组文件（按选题设计；表存在后改字段需归档重建）")
+    s.add_argument("--force", action="store_true", help="tomd 时重转已有 MD")
+    s.set_defaults(fn=lambda a: (
+        intake.tomd(_run(a), pdf_dir=a.pdf_dir, out_dir=a.out_dir, force=a.force)
+        if a.action == "tomd" else
+        intake.table(_run(a), pdf_dir=a.pdf_dir, out=a.table, fields_file=a.fields)))
 
     a = p.parse_args()
     return a.fn(a)
